@@ -94,3 +94,17 @@ def test_npy_payload_matches_numpy(tmp_path):
     np.save(tmp_path / "b.npy", a.astype(np.float64))
     with pytest.raises(ValueError):
         webapp.npy_payload((tmp_path / "b.npy").read_bytes())
+
+
+def test_sync_all_fills_a_new_server(tmp_path, server):
+    """Builds already marked synced (with another server) still reach a new one with sync(everything=True)."""
+    lap = cache.Local(tmp_path / "laptop")
+    other = serve(tmp_path / "other", "127.0.0.1", 0)
+    threading.Thread(target=other.serve_forever, daemon=True).start()
+    try:
+        model.build(project(tmp_path), local=lap, remote=Remote(f"http://127.0.0.1:{other.server_address[1]}"))
+    finally:
+        other.shutdown()
+    assert lap.unsynced() == [] and Remote(server).sync(lap) == 0          # nothing looks new
+    assert Remote(server).sync(lap, everything=True) == 2
+    assert len(json.loads(get(server + "/api/projects")[0])) == 1

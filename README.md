@@ -43,7 +43,8 @@ meshes, sizes) are kept
 
 - **locally** in `~/.cache/hexcad` (works offline), and
 - **on a server** (keeps every build; clients keep their 400 most recently used) (`hexcad serve`, e.g. an old tablet at home): a missing feature is fetched from the server before it
-  is built; new builds are pushed right away, or on the next contact after working offline (`hexcad sync` forces it).
+  is built; new builds are pushed right away, or on the next contact after working offline (`hexcad sync` forces it;
+  `hexcad sync --all` checks every local build, e.g. after changing servers).
 
 Client config: `~/.config/hexcad/config.json` → `{"server": "http://100.97.75.22:8770"}` (the `server` tablet over
 Tailscale, works away from home too) (or `HEXCAD_SERVER`).

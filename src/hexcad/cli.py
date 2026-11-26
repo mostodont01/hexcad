@@ -84,7 +84,7 @@ def cmd_sync(a):
     if not r.url:
         print("no server set (~/.config/hexcad/config.json {\"server\": \"http://host:8770\"} or HEXCAD_SERVER)")
         return 1
-    n = r.sync(Local())
+    n = r.sync(Local(), everything=a.all)
     print(f"{r.url}: offline" if n is None else f"{r.url}: pushed {n} builds")
     return 1 if n is None else 0
 
@@ -120,7 +120,10 @@ def main(argv=None):
     sv.add_argument("--host", default="0.0.0.0")
     sv.add_argument("--port", type=int, default=8770)
     sv.set_defaults(fn=cmd_serve)
-    sub.add_parser("sync", help="push local builds the server is missing").set_defaults(fn=cmd_sync)
+    sy = sub.add_parser("sync", help="push local builds the server is missing")
+    sy.add_argument("--all", action="store_true",
+                    help="check every local build and project, not only new ones (after changing servers)")
+    sy.set_defaults(fn=cmd_sync)
     sub.choices["slice"].add_argument("--no-slice", action="store_true", help="only make the job")
     a = ap.parse_args(argv)
     return a.fn(a) or 0

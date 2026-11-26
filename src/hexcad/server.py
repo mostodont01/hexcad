@@ -71,19 +71,20 @@ class Remote:
         b = self._req("POST", "/have", json.dumps(keys).encode())
         return set(json.loads(b)) if b else None
 
-    def sync(self, local):
+    def sync(self, local, everything=False):
         """Push every local entry the server is missing (and changed project manifests).
-        Returns the number of entries pushed (None = offline)."""
-        n = self._sync_entries(local)
+        everything: check all local entries and projects, not only the ones not marked synced (a "synced" mark
+        doesn't say which server; use it after changing servers). Returns the number of entries pushed (None = offline)."""
+        n = self._sync_entries(local, everything)
         if n is not None:
-            for name in local.unsynced_projects():
+            for name in (local.project_names() if everything else local.unsynced_projects()):
                 data = local.get_project(name)
                 if data is not None and self._req("PUT", f"/project/{name}", data) is not None:
                     local.mark_project_synced(name, data)
         return n
 
-    def _sync_entries(self, local):
-        todo = local.unsynced()
+    def _sync_entries(self, local, everything=False):
+        todo = local.keys() if everything else local.unsynced()
         if not todo:
             return 0
         there = self.have(todo)
