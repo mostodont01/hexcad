@@ -1,0 +1,26 @@
+[project]
+name = "hexcad"
+version = "0.1.0"
+description = "Code-first CAD on build123d / OpenCascade, with a live 3D viewer"
+readme = "README.md"
+authors = [
+    { name = "mostodont01", email = "otoskypala0@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "build123d>=0.13.0",
+    "pyside6>=6.12.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-qt>=4.5.0",
+]
+
+[project.scripts]
+hexcad = "hexcad.cli:main"
