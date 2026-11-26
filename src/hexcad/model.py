@@ -155,7 +155,7 @@ def clashes(parts, min_volume=1.0):
         if any(a1[k] < b0[k] or b1[k] < a0[k] for k in range(3)):
             continue
         v = parts[i].shape.intersect(parts[j].shape)
-        v = v.volume if v is not None else 0
+        v = 0 if v is None else (sum(x.volume for x in v) if isinstance(v, list) else v.volume)
         if v > min_volume:
             res.append((parts[i], parts[j], v))
     return res
