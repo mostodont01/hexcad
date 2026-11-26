@@ -22,7 +22,7 @@ hexcad list project.py          # features
 hexcad info project.py          # sizes + volumes of every part
 hexcad build project.py -o out --step     # STL (+ STEP) per part
 hexcad check project.py --strict          # clash check (overlap volumes)
-hexcad slice project.py -f bracket        # new Prusa Workbench job: lay flat, arrange, slice, open the viewer
+hexcad slice project.py -f bracket -p "L bracket"   # new Prusa Workbench job (lay flat, arrange, slice, open the viewer)
 ```
 
 - **Helpers** (`hexcad.shapes`, mm): `bx`, `rbx`, `cyl`, `cone`, `sph`, `prism` (polygon on any plane, extruded),

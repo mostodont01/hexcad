@@ -13,8 +13,13 @@ def slug(n):
 
 def _parts(a):
     feats = model.load(a.project)
-    return model.build(feats, a.feature or None, cache=not a.no_cache,
-                       log=lambda m: print(m, file=sys.stderr) if a.verbose else None)
+    parts = model.build(feats, a.feature or None, cache=not a.no_cache,
+                        log=lambda m: print(m, file=sys.stderr) if a.verbose else None)
+    if a.part:
+        parts = [p for p in parts if any(q.lower() in p.name.lower() for q in a.part)]
+        if not parts:
+            raise SystemExit(f"no part matches {a.part}")
+    return parts
 
 
 def cmd_list(a):
@@ -94,6 +99,7 @@ def main(argv=None):
             p.add_argument("-f", "--feature", action="append", help="feature to build (repeatable; default all)")
             p.add_argument("-v", "--verbose", action="store_true")
             p.add_argument("--no-cache", action="store_true", help="always build (no cache, no server)")
+            p.add_argument("-p", "--part", action="append", help="only parts whose name contains this (repeatable)")
     sub.choices["build"].add_argument("-o", "--out", default="out")
     sub.choices["build"].add_argument("--step", action="store_true", help="also write STEP")
     sub.choices["build"].add_argument("--no-stl", action="store_true")
