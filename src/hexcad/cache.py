@@ -8,19 +8,24 @@ import json
 import os
 import tempfile
 import types
+import functools
 import zipfile
 from pathlib import Path
 
-import build123d
-
 LOCAL = Path(os.environ.get("HEXCAD_CACHE", Path(os.environ.get("XDG_CACHE_HOME", "~/.cache")).expanduser() / "hexcad"))
 KEEP = 400          # local entries kept (least recently used ones are removed)
-_TOOL = hashlib.sha256((Path(__file__).with_name("shapes.py").read_bytes() + build123d.__version__.encode())).hexdigest()
+
+
+@functools.cache
+def _tool():
+    """Hash of HexCAD's shape helpers + the build123d version (imported here, so `hexcad serve` needs no CAD kernel)."""
+    import build123d
+    return hashlib.sha256(Path(__file__).with_name("shapes.py").read_bytes() + build123d.__version__.encode()).hexdigest()
 
 
 def feature_key(fn):
     """Hash of everything a feature function depends on inside its project file."""
-    g, seen, h = fn.__globals__, set(), hashlib.sha256(_TOOL.encode())
+    g, seen, h = fn.__globals__, set(), hashlib.sha256(_tool().encode())
 
     def names(co):
         out = set(co.co_names)
@@ -52,6 +57,7 @@ def feature_key(fn):
 
 def pack(parts, mesher):
     """Parts of one feature -> zip bytes (exact shapes as BREP, viewer meshes, sizes, volumes)."""
+    import build123d
     import numpy as np
     buf = io.BytesIO()
     meta = []

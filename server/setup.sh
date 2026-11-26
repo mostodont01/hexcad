@@ -13,7 +13,8 @@ uv tool install --force --python 3.12 "hexcad @ https://github.com/mostodont01/h
 mkdir -p ~/hexcad-store
 [ "$MODE" = none ] && exit 0
 CMD="$HOME/.local/bin/hexcad serve --dir $HOME/hexcad-store >> $HOME/hexcad-store/serve.log 2>&1"
-( crontab -l 2>/dev/null | grep -v 'hexcad serve' ; echo "@reboot $CMD" ) | crontab -
+# (|| true: an empty crontab makes grep exit 1, which pipefail would turn into an abort)
+( crontab -l 2>/dev/null | grep -v 'hexcad serve' || true ; echo "@reboot $CMD" ) | crontab -
 pkill -f 'hexcad serve' || true
 nohup bash -c "$CMD" >/dev/null 2>&1 &
 for _ in $(seq 20); do curl -fsS http://127.0.0.1:8770/keys >/dev/null 2>&1 && break; sleep 1; done

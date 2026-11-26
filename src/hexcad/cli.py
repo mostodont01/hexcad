@@ -4,7 +4,16 @@ import re
 import sys
 from pathlib import Path
 
-from . import model
+
+
+class _LazyModel:
+    """`model` is imported on first use, so `hexcad serve` / `sync` run without the CAD kernel (no libGL on servers)."""
+    def __getattr__(self, name):
+        from . import model as m
+        return getattr(m, name)
+
+
+model = _LazyModel()
 
 
 def slug(n):
