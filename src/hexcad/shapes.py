@@ -90,15 +90,39 @@ def engrave(txt, cx, cy, h, z, d):
     return Body(extrude(t, amount=d, dir=(0, 0, -1)).moved(Location((cx, cy, z))))
 
 
+def _vol(s):
+    try:
+        return s.volume
+    except Exception:  # noqa: BLE001 - a broken result counts as empty
+        return 0.0
+
+
 def unite(adds):
+    """Union of the bodies (into adds[0]). OpenCascade's one-call union of many tools sometimes fails and returns an
+    empty shape; a union can never be smaller than its biggest piece, so then it is redone one piece at a time."""
     if len(adds) > 1:
-        adds[0].s = _s(adds[0]).fuse(*[_s(a) for a in adds[1:]])
+        shapes = [_s(a) for a in adds]
+        r = shapes[0].fuse(*shapes[1:])
+        if _vol(r) < max(_vol(x) for x in shapes) - 1e-6:
+            r = shapes[0]
+            for x in shapes[1:]:
+                r = r.fuse(x)
+        adds[0].s = r
     return adds[0]
 
 
 def cut(target, subs):
+    """Subtract the bodies from target (in place). If the one-call cut wipes out the target (OpenCascade failure),
+    it is redone one tool at a time."""
     if subs:
-        target.s = target.s.cut(*[_s(x) for x in subs])
+        tools = [_s(x) for x in subs]
+        v0 = _vol(target.s)
+        r = target.s.cut(*tools)
+        if v0 > 0 and _vol(r) <= 1e-6:
+            r = target.s
+            for x in tools:
+                r = r.cut(x)
+        target.s = r
     return target
 
 

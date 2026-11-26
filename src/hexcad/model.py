@@ -102,6 +102,9 @@ def _run(features, n):
     _parts, _feature, _hidden = [], n, getattr(features[n], "hexcad_hidden", False)
     try:
         features[n]()
+        for p in _parts:
+            if not p.volume > 0:
+                raise RuntimeError(f"{n}: part {p.name!r} came out empty (a boolean failed); not cached")
         return _parts
     finally:
         _parts = None

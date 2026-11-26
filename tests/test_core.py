@@ -60,3 +60,24 @@ def test_cli_build(tmp_path, capsys):
     assert (tmp_path / "rib.step").exists()
     assert cli.main(["check", str(EX), "--strict"]) == 0
     assert "2 parts, 0 clashes" in capsys.readouterr().out
+
+
+def test_empty_part_is_an_error(tmp_path):
+    f = tmp_path / "p.py"
+    f.write_text("from hexcad import feature\nfrom hexcad.shapes import bx, part, color\n"
+                 "@feature\ndef f():\n    part('Gone', [bx([0,0,0],[1,1,1])], [bx([-1,-1,-1],[2,2,2])], color(1,0,0))\n")
+    with pytest.raises(RuntimeError, match="came out empty"):
+        model.build(model.load(f), cache=False)
+
+
+def test_batch_fallback(monkeypatch):
+    from build123d import Solid
+    import hexcad.shapes as S
+    a, b = bx([0, 0, 0], [10, 10, 10]), bx([10, 0, 0], [20, 10, 10])
+    real = Solid.fuse
+
+    def flaky(self, *others):                      # simulate the OCC multi-tool failure
+        return Solid() if len(others) > 1 else real(self, *others)
+    monkeypatch.setattr(Solid, "fuse", flaky)
+    u = S.unite([a, b, bx([20, 0, 0], [30, 10, 10])])
+    assert u.volume == pytest.approx(3000)
