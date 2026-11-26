@@ -45,9 +45,24 @@ meshes, sizes) are kept
 - **on a server** (keeps every build; clients keep their 400 most recently used) (`hexcad serve`, e.g. an old tablet at home): a missing feature is fetched from the server before it
   is built; new builds are pushed right away, or on the next contact after working offline (`hexcad sync` forces it).
 
-Client config: `~/.config/hexcad/config.json` → `{"server": "http://100.97.75.22:8770"}` (tab01 over Tailscale, works away from home too) (or `HEXCAD_SERVER`).
+Client config: `~/.config/hexcad/config.json` → `{"server": "http://100.97.75.22:8770"}` (the `server` tablet over
+Tailscale, works away from home too) (or `HEXCAD_SERVER`).
 Server setup over SSH, no root: `server/install-server.sh <ssh-host>` (uv + HexCAD, `hexcad serve` with a crontab
 `@reboot` line). Offline costs one 0.5 s connection probe. `--no-cache` builds without either.
+
+## Phone app
+
+`hexcad serve` also serves an installable web app (PWA) with your models in 3D: the project list (newest change
+first), then the model; drag to orbit, pinch to zoom, tap a part for its name, size and volume, and the features
+sheet at the bottom shows / hides features (hidden ones, like test prints, start off).
+
+Whenever a client builds a **whole** project (the viewer, `hexcad info`, `build`, `check`, ...), it also stores
+which build each feature uses now and pushes that to the server with the builds, so the phone always shows the
+latest model. Meshes are cached on the phone (a build's key changes when it changes), so a model downloads once.
+
+Installing it needs HTTPS: on the server, `sudo tailscale serve --bg 8770` gives
+`https://<server>.<tailnet>.ts.net`; open that in Chrome on the phone and use **Install app**. The server itself has
+no CAD kernel (stdlib + the stored meshes); three.js loads from a CDN.
 
 ## Install
 

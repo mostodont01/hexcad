@@ -78,8 +78,13 @@ def register(body, name, color):
 _counter = itertools.count()
 
 
+class Features(dict):
+    """{name: function} of one project file; .path is the file (names the project on the build store)."""
+    path: Path | None = None
+
+
 def load(path):
-    """Import a project file and return its features {name: function}."""
+    """Import a project file and return its features {name: function} (a Features dict with .path)."""
     path = Path(path).resolve()
     FEATURES.clear()
     modname = f"hexcad_project_{next(_counter)}"
@@ -94,7 +99,9 @@ def load(path):
         exec(compile(path.read_text(), str(path), "exec"), mod.__dict__)
     finally:
         sys.path.remove(str(path.parent))
-    return dict(FEATURES)
+    out = Features(FEATURES)
+    out.path = path
+    return out
 
 
 def _run(features, n):
@@ -142,11 +149,28 @@ def build(features, names=None, log=None, cache=True, local=None, remote=None):
             out += C.unpack(blob, n)
         if log:
             log(f"{n}: {src} in {time.time() - t:.1f} s")
+    if cache and names is None and getattr(features, "path", None):
+        _record_project(local, features)
     if cache:
         pushed = remote.sync(local)
         if log and pushed:
             log(f"pushed {pushed} new builds to the server")
     return out
+
+
+def _record_project(local, features):
+    """Save which build each feature of the project uses now (for the phone app); untouched if nothing changed,
+    so `updated` means "the model last changed" and unchanged rebuilds don't re-upload it."""
+    import json
+    from . import cache as C
+    name = C.project_name(features.path)
+    new = C.project_manifest(features.path, features)
+    old = local.get_project(name)
+    if old is not None:
+        o, n = json.loads(old), json.loads(new)
+        if (o["features"], o["file"]) == (n["features"], n["file"]):
+            return
+    local.put_project(name, new)
 
 
 def clashes(parts, min_volume=1.0):

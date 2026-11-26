@@ -7,6 +7,7 @@ import io
 import json
 import os
 import tempfile
+import time
 import types
 import functools
 import zipfile
@@ -132,3 +133,53 @@ class Local:
         for f in files[self.keep:]:
             f.unlink(missing_ok=True)
             f.with_suffix(".synced").unlink(missing_ok=True)
+
+    # Projects: which entry each feature of a project file uses right now (the phone app shows these).
+    # projects/<name>.json; a `.synced` file next to it holds the content's hash once the server has it.
+
+    def put_project(self, name, data):
+        d = self.root / "projects"
+        d.mkdir(parents=True, exist_ok=True)
+        tmp = d / f"{name}.tmp"
+        tmp.write_bytes(data)
+        tmp.replace(d / f"{name}.json")
+
+    def get_project(self, name):
+        f = self.root / "projects" / f"{name}.json"
+        return f.read_bytes() if f.exists() else None
+
+    def project_names(self):
+        d = self.root / "projects"
+        return sorted(f.stem for f in d.glob("*.json")) if d.exists() else []
+
+    def unsynced_projects(self):
+        out = []
+        for n in self.project_names():
+            mark = self.root / "projects" / f"{n}.synced"
+            if not mark.exists() or mark.read_text() != _digest(self.get_project(n)):
+                out.append(n)
+        return out
+
+    def mark_project_synced(self, name, data):
+        (self.root / "projects" / f"{name}.synced").write_text(_digest(data))
+
+
+def _digest(data):
+    return hashlib.sha256(data or b"").hexdigest()
+
+
+def project_name(path):
+    """Store name of a project file: its stem + a short hash of where it lives (two robot.py files don't clash)."""
+    path = Path(path).resolve()
+    stem = "".join(c if c.isalnum() or c in "_-" else "_" for c in path.stem)
+    return f"{stem}-{hashlib.sha1(str(path).encode()).hexdigest()[:6]}"
+
+
+def project_manifest(path, features):
+    """JSON bytes: project title/file + [{name, key, hidden}] per feature, in the file's order."""
+    path = Path(path).resolve()
+    home = Path.home()
+    shown = f"~/{path.relative_to(home)}" if path.is_relative_to(home) else str(path)
+    return json.dumps({"name": project_name(path), "title": path.stem, "file": shown, "updated": time.time(),
+                       "features": [{"name": n, "key": feature_key(f), "hidden": getattr(f, "hexcad_hidden", False)}
+                                    for n, f in features.items()]}).encode()

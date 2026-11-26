@@ -11,6 +11,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from . import webapp
 from .cache import Local
 
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser() / "hexcad" / "config.json"
@@ -71,7 +72,17 @@ class Remote:
         return set(json.loads(b)) if b else None
 
     def sync(self, local):
-        """Push every local entry the server is missing. Returns the number pushed (None = offline)."""
+        """Push every local entry the server is missing (and changed project manifests).
+        Returns the number of entries pushed (None = offline)."""
+        n = self._sync_entries(local)
+        if n is not None:
+            for name in local.unsynced_projects():
+                data = local.get_project(name)
+                if data is not None and self._req("PUT", f"/project/{name}", data) is not None:
+                    local.mark_project_synced(name, data)
+        return n
+
+    def _sync_entries(self, local):
         todo = local.unsynced()
         if not todo:
             return 0
@@ -108,11 +119,28 @@ def serve(root, host="0.0.0.0", port=8770):
         def do_GET(self):
             if self.path == "/keys":
                 return self._send(200, json.dumps(store.keys()).encode(), "application/json")
-            k = self._key()
-            blob = store.get(k) if k else None
-            self._send(200, blob) if blob else self._send(404)
+            if self.path.startswith("/entry/"):
+                k = self._key()
+                blob = store.get(k) if k else None
+                return self._send(200, blob) if blob else self._send(404)
+            if not webapp.handle_get(self, store, KEY):        # the phone app and its API
+                self._send(404)
 
         def do_PUT(self):
+            if self.path.startswith("/project/"):
+                name = self.path.rsplit("/", 1)[-1]
+                n = int(self.headers.get("Content-Length", 0))
+                if not webapp.NAME.match(name) or not 0 < n < 1_000_000:
+                    return self._send(400)
+                data = self.rfile.read(n)
+                try:
+                    m = json.loads(data)
+                    assert m["name"] == name and isinstance(m["features"], list)
+                except (ValueError, KeyError, AssertionError, TypeError):
+                    return self._send(400)
+                with lock:
+                    store.put_project(name, data)
+                return self._send(201)
             k = self._key()
             n = int(self.headers.get("Content-Length", 0))
             if not k or not 0 < n < 200_000_000:
