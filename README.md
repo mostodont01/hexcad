@@ -42,7 +42,7 @@ HexCAD / build123d version), so editing one part rebuilds only that feature. Bui
 meshes, sizes) are kept
 
 - **locally** in `~/.cache/hexcad` (works offline), and
-- **on a server** (`hexcad serve`, e.g. an old tablet at home): a missing feature is fetched from the server before it
+- **on a server** (keeps every build; clients keep their 400 most recently used) (`hexcad serve`, e.g. an old tablet at home): a missing feature is fetched from the server before it
   is built; new builds are pushed right away, or on the next contact after working offline (`hexcad sync` forces it).
 
 Client config: `~/.config/hexcad/config.json` → `{"server": "http://192.168.1.143:8770"}` (or `HEXCAD_SERVER`).

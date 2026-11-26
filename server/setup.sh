@@ -12,6 +12,12 @@ command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 uv tool install --force --python 3.12 "hexcad @ https://github.com/mostodont01/hexcad/archive/refs/heads/main.zip"
 mkdir -p ~/hexcad-store
 [ "$MODE" = none ] && exit 0
+if systemctl cat hexcad-serve >/dev/null 2>&1; then   # tablet installed with the hexcad role: systemd runs it
+    sudo -n systemctl restart hexcad-serve
+    for _ in $(seq 30); do curl -fsS http://127.0.0.1:8770/keys >/dev/null 2>&1 && break; sleep 1; done
+    curl -fsS http://127.0.0.1:8770/keys >/dev/null && echo "HexCAD build store (systemd) running on $(hostname -I | awk '{print $1}'):8770"
+    exit 0
+fi
 CMD="$HOME/.local/bin/hexcad serve --dir $HOME/hexcad-store >> $HOME/hexcad-store/serve.log 2>&1"
 # (|| true: an empty crontab makes grep exit 1, which pipefail would turn into an abort)
 ( crontab -l 2>/dev/null | grep -v 'hexcad serve' || true ; echo "@reboot $CMD" ) | crontab -

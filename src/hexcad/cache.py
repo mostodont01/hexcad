@@ -94,8 +94,10 @@ def unpack(blob, feature):
 
 
 class Local:
-    def __init__(self, root=LOCAL):
+    """Folder of entries. keep = how many recently used entries survive pruning; None keeps everything (the server)."""
+    def __init__(self, root=LOCAL, keep=KEEP):
         self.root = Path(root)
+        self.keep = keep
 
     def path(self, key):
         return self.root / f"{key}.zip"
@@ -124,7 +126,9 @@ class Local:
         (self.root / f"{key}.synced").touch()
 
     def prune(self):
+        if self.keep is None:
+            return
         files = sorted(self.root.glob("*.zip"), key=lambda f: f.stat().st_mtime, reverse=True)
-        for f in files[KEEP:]:
+        for f in files[self.keep:]:
             f.unlink(missing_ok=True)
             f.with_suffix(".synced").unlink(missing_ok=True)

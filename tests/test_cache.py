@@ -79,3 +79,13 @@ def test_server_sync_and_offline(tmp_path):
         assert desk.unsynced() == []
     finally:
         srv.shutdown()
+
+
+def test_client_prunes_but_server_store_keeps_everything(tmp_path):
+    client = cache.Local(tmp_path / "client", keep=3)
+    store = cache.Local(tmp_path / "store", keep=None)
+    for i in range(6):
+        client.put(f"k{i}", b"x")
+        store.put(f"k{i}", b"x")
+    assert len(client.keys()) == 3
+    assert sorted(store.keys()) == [f"k{i}" for i in range(6)]

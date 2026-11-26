@@ -90,7 +90,7 @@ class Remote:
 
 
 def serve(root, host="0.0.0.0", port=8770):
-    store = Local(root)
+    store = Local(root, keep=None)     # the server is the archive: never prunes
     lock = threading.Lock()
 
     class H(BaseHTTPRequestHandler):
