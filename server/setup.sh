@@ -8,7 +8,8 @@ set -euo pipefail
 MODE=${1:-cron}
 export PATH="$HOME/.local/bin:$PATH"
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install --force --python 3.12 "git+https://github.com/mostodont01/hexcad"
+# zip archive instead of git+https: works on boxes without git
+uv tool install --force --python 3.12 "hexcad @ https://github.com/mostodont01/hexcad/archive/refs/heads/main.zip"
 mkdir -p ~/hexcad-store
 [ "$MODE" = none ] && exit 0
 CMD="$HOME/.local/bin/hexcad serve --dir $HOME/hexcad-store >> $HOME/hexcad-store/serve.log 2>&1"
