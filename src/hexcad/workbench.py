@@ -47,7 +47,10 @@ def send(parts, project="hexcad", slice_now=False, settings=None, run=subprocess
     for p in parts:
         n = re.sub(r"[^A-Za-z0-9]+", "-", re.sub(r"\(.*?\)", "", p.name)).strip("-")
         f = out / f"{n}.stl"
-        export_stl(p.shape, str(f), tolerance=0.01, angular_tolerance=0.1)
+        if getattr(p, "source", None):
+            f = Path(p.source)
+        else:
+            export_stl(p.shape, str(f), tolerance=0.01, angular_tolerance=0.1)
         files.append([str(f), n])
     job = f"{re.sub(r'[^a-z0-9]+', '-', project.lower())}-{len(parts)}-parts"
     args = {"job": job, "files": files, "slice": slice_now, "settings": settings or SETTINGS}

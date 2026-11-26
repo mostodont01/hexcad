@@ -34,7 +34,7 @@ ApplicationWindow {
                 Loader {
                     id: openDlg; active: false
                     sourceComponent: FileDialog {
-                        visible: true; nameFilters: ["HexCAD project (*.py)"]
+                        visible: true; nameFilters: ["HexCAD project or mesh (*.py *.stl)", "HexCAD project (*.py)", "STL mesh (*.stl)"]
                         onAccepted: { studio.open(selectedFile); openDlg.active = false }
                         onRejected: openDlg.active = false
                     }

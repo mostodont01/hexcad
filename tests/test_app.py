@@ -62,3 +62,33 @@ def test_workbench_send(monkeypatch, tmp_path):
     assert Path(a["files"][0][0]).stat().st_size > 1000
     assert a["settings"]["fill_pattern"] == "gyroid"
     assert "2 parts sliced" in msg
+
+
+def test_stl_viewing(tmp_path, qtbot):
+    from build123d import export_stl
+    from hexcad.app import Studio
+    from hexcad.meshfile import stl_part
+    from hexcad.shapes import bx
+    f = tmp_path / "cube.stl"
+    export_stl(bx([0, 0, 0], [10, 20, 30]).s, str(f))
+    p = stl_part(f)
+    assert p.volume == pytest.approx(6000, rel=1e-3) and p.bbox[1] == pytest.approx((10, 20, 30))
+    s = Studio(f)
+    s.rebuild()
+    qtbot.waitUntil(lambda: not s.busy and s.parts.rowCount() == 1, timeout=30000)
+    assert s.parts.rows[0]["name"] == "cube"
+
+
+def test_workbench_takes_stl_file(monkeypatch, tmp_path):
+    import json
+    from build123d import export_stl
+    from hexcad import workbench
+    from hexcad.meshfile import stl_part
+    from hexcad.shapes import bx
+    f = tmp_path / "cube.stl"
+    export_stl(bx([0, 0, 0], [5, 5, 5]).s, str(f))
+    seen = {}
+    monkeypatch.setattr(workbench, "python", lambda: Path("/usr/bin/python3"))
+    workbench.send([stl_part(f)], "x", run=lambda cmd, **kw: seen.update(a=json.loads(cmd[-1])) or
+                   type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    assert seen["a"]["files"] == [[str(f.resolve()), "cube"]]

@@ -101,7 +101,7 @@ def main(argv=None):
                     ("info", cmd_info, "sizes and volumes"), ("check", cmd_check, "clash check"),
                     ("slice", cmd_slice, "send parts to Prusa Workbench and slice"), ("view", cmd_view, "open the viewer")]:
         p = sub.add_parser(n, help=h)
-        p.add_argument("project", nargs="?" if n == "view" else None, help="project .py file"
+        p.add_argument("project", nargs="?" if n == "view" else None, help="project .py file (view: also .stl)"
                        + (" (default: the last one opened)" if n == "view" else ""))
         p.set_defaults(fn=f)
         if n in ("build", "info", "check", "slice"):

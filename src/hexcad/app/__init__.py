@@ -11,7 +11,7 @@ from PySide6.QtGui import QColor, QGuiApplication, QVector3D
 from PySide6.QtQml import QmlElement, QQmlApplicationEngine
 from PySide6.QtQuick3D import QQuick3DGeometry
 
-from .. import model
+from .. import meshfile, model
 from ..mesh import tessellate  # noqa: F401 (re-export)
 from .. import workbench
 
@@ -42,8 +42,12 @@ class Builder(QThread):
 
     def run(self):
         try:
-            feats = model.load(self.path)
-            parts = model.build(feats, self.features or None, log=self.log.emit)
+            if self.path.lower().endswith(meshfile.EXTS):          # plain STL: just show it
+                feats, parts = [], [meshfile.stl_part(self.path)]
+                self.log.emit(f"{len(parts[0].mesh[0]) // 3} triangles")
+            else:
+                feats = model.load(self.path)
+                parts = model.build(feats, self.features or None, log=self.log.emit)
             meshes = [p.mesh if p.mesh is not None else tessellate(p.shape) for p in parts]
             self.done.emit((list(feats), parts, meshes), "")
         except Exception:  # noqa: BLE001 - show any project error in the UI
