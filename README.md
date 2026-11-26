@@ -35,6 +35,20 @@ hexcad slice project.py -f bracket        # new Prusa Workbench job: lay flat, a
   "Slice" export the selected parts (none selected = all shown) into a new job with gyroid infill and a 15 mm/s first
   layer, using Workbench's own Python (`HEXCAD_WORKBENCH`, default `~/Programming/PrusaSlicer-mcp`).
 
+## Build cache + server
+
+Nothing is built twice. Every feature gets a key from its own code plus the functions and constants it uses (and the
+HexCAD / build123d version), so editing one part rebuilds only that feature. Built features (exact BREP shapes, viewer
+meshes, sizes) are kept
+
+- **locally** in `~/.cache/hexcad` (works offline), and
+- **on a server** (`hexcad serve`, e.g. an old tablet at home): a missing feature is fetched from the server before it
+  is built; new builds are pushed right away, or on the next contact after working offline (`hexcad sync` forces it).
+
+Client config: `~/.config/hexcad/config.json` → `{"server": "http://192.168.1.143:8770"}` (or `HEXCAD_SERVER`).
+Server setup over SSH, no root: `server/install-server.sh <ssh-host>` (uv + HexCAD, `hexcad serve` with a crontab
+`@reboot` line). Offline costs one 0.5 s connection probe. `--no-cache` builds without either.
+
 ## Install
 
 ```
@@ -43,6 +57,6 @@ uv tool install --editable .     # puts `hexcad` on the PATH
 
 Tests: `QT_QPA_PLATFORM=offscreen uv run pytest`.
 
-Planned: run builds on a small home server (old tablet) and view from anywhere; STEP import of bought parts.
+Planned: STEP import of bought parts; builds on the server for weak clients.
 
 MIT licence.

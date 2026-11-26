@@ -12,24 +12,11 @@ from PySide6.QtQml import QmlElement, QQmlApplicationEngine
 from PySide6.QtQuick3D import QQuick3DGeometry
 
 from .. import model
+from ..mesh import tessellate  # noqa: F401 (re-export)
 from .. import workbench
 
 QML_IMPORT_NAME = "HexCAD"
 QML_IMPORT_MAJOR_VERSION = 1
-
-
-def tessellate(shape, tol=0.05):
-    """Flat-shaded triangle soup: float32 [x y z nx ny nz] per vertex, plus bounds."""
-    verts, tris = shape.tessellate(tol, 0.2)
-    if not tris:
-        return np.zeros((0, 6), np.float32), (0, 0, 0), (0, 0, 0)
-    v = np.array([(p.X, p.Y, p.Z) for p in verts], np.float32)
-    t = np.array(tris, np.int64)
-    p = v[t]                                            # (n, 3, 3)
-    n = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0])
-    n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-    data = np.concatenate([p, np.repeat(n[:, None, :], 3, axis=1)], axis=2).reshape(-1, 6)
-    return data.astype(np.float32), v.min(0), v.max(0)
 
 
 @QmlElement
@@ -47,6 +34,7 @@ class MeshGeometry(QQuick3DGeometry):
 
 class Builder(QThread):
     done = Signal(object, str)
+    log = Signal(str)
 
     def __init__(self, path, features):
         super().__init__()
@@ -55,8 +43,8 @@ class Builder(QThread):
     def run(self):
         try:
             feats = model.load(self.path)
-            parts = model.build(feats, self.features or None)
-            meshes = [tessellate(p.shape) for p in parts]
+            parts = model.build(feats, self.features or None, log=self.log.emit)
+            meshes = [p.mesh if p.mesh is not None else tessellate(p.shape) for p in parts]
             self.done.emit((list(feats), parts, meshes), "")
         except Exception:  # noqa: BLE001 - show any project error in the UI
             self.done.emit(None, traceback.format_exc(limit=6))
@@ -151,6 +139,8 @@ class Studio(QObject):
         self._set(busy=True, status="building…")
         self._builder = Builder(self._path, [self._feature] if self._feature else None)
         self._builder.done.connect(self._built)
+        self._log = []
+        self._builder.log.connect(lambda m: (self._log.append(m), self._set(status="\n".join(self._log))))
         self._builder.start()
 
     @Slot(str)
@@ -182,7 +172,7 @@ class Studio(QObject):
             if lo[0] > hi[0]:                      # everything hidden: frame it all
                 lo, hi = np.zeros(3), np.full(3, 100.0)
             c = (lo + hi) / 2
-            self._set(busy=False, features=["All"] + feats, status=f"{len(parts)} parts",
+            self._set(busy=False, features=["All"] + feats, status=f"{len(parts)} parts\n" + "\n".join(self._log),
                       radius=float(max(np.linalg.norm(hi - lo) / 2, 10)),
                       center=QVector3D(*map(float, c)))
         if self._again:

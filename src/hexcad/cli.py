@@ -13,7 +13,8 @@ def slug(n):
 
 def _parts(a):
     feats = model.load(a.project)
-    return model.build(feats, a.feature or None, log=lambda m: print(m, file=sys.stderr) if a.verbose else None)
+    return model.build(feats, a.feature or None, cache=not a.no_cache,
+                       log=lambda m: print(m, file=sys.stderr) if a.verbose else None)
 
 
 def cmd_list(a):
@@ -57,6 +58,23 @@ def cmd_slice(a):
     print(workbench.send(_parts(a), Path(a.project).stem, slice_now=not a.no_slice))
 
 
+def cmd_serve(a):
+    from .server import serve
+    serve(Path(a.dir).expanduser(), a.host, a.port).serve_forever()
+
+
+def cmd_sync(a):
+    from .cache import Local
+    from .server import Remote
+    r = Remote()
+    if not r.url:
+        print("no server set (~/.config/hexcad/config.json {\"server\": \"http://host:8770\"} or HEXCAD_SERVER)")
+        return 1
+    n = r.sync(Local())
+    print(f"{r.url}: offline" if n is None else f"{r.url}: pushed {n} builds")
+    return 1 if n is None else 0
+
+
 def cmd_view(a):
     from .app import main
     return main(a.project)
@@ -75,12 +93,19 @@ def main(argv=None):
         if n in ("build", "info", "check", "slice"):
             p.add_argument("-f", "--feature", action="append", help="feature to build (repeatable; default all)")
             p.add_argument("-v", "--verbose", action="store_true")
+            p.add_argument("--no-cache", action="store_true", help="always build (no cache, no server)")
     sub.choices["build"].add_argument("-o", "--out", default="out")
     sub.choices["build"].add_argument("--step", action="store_true", help="also write STEP")
     sub.choices["build"].add_argument("--no-stl", action="store_true")
     sub.choices["build"].add_argument("--tolerance", type=float, default=0.01, help="STL chord tolerance (mm)")
     sub.choices["check"].add_argument("--min", type=float, default=1.0, help="ignore overlaps below this (mm3)")
     sub.choices["check"].add_argument("--strict", action="store_true", help="exit 1 on clashes")
+    sv = sub.add_parser("serve", help="run the build store (e.g. on the home server)")
+    sv.add_argument("--dir", default="~/hexcad-store")
+    sv.add_argument("--host", default="0.0.0.0")
+    sv.add_argument("--port", type=int, default=8770)
+    sv.set_defaults(fn=cmd_serve)
+    sub.add_parser("sync", help="push local builds the server is missing").set_defaults(fn=cmd_sync)
     sub.choices["slice"].add_argument("--no-slice", action="store_true", help="only make the job")
     a = ap.parse_args(argv)
     return a.fn(a) or 0
