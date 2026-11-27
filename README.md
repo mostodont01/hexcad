@@ -73,6 +73,10 @@ uv tool install --editable .     # puts `hexcad` on the PATH
 
 Tests: `QT_QPA_PLATFORM=offscreen uv run pytest`.
 
-Planned: STEP import of bought parts; builds on the server for weak clients.
+Bought parts from STEP: `LIDAR = StepFile("../step/lidar.stp")` as a constant (the build cache follows the file's
+hash), then `step(LIDAR, keep=lambda lo, hi: ...)` gives a Body (`keep` drops solids by bounding box, e.g. a cable
+drawn straight out); faces a vendor model can't mesh are skipped in the viewer.
+
+Planned: builds on the server for weak clients.
 
 MIT licence.

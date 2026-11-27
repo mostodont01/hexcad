@@ -81,3 +81,30 @@ def test_batch_fallback(monkeypatch):
     monkeypatch.setattr(Solid, "fuse", flaky)
     u = S.unite([a, b, bx([20, 0, 0], [30, 10, 10])])
     assert u.volume == pytest.approx(3000)
+
+
+def test_step_import_filter_and_cache_key(tmp_path):
+    """Bought parts from STEP: solids picked by bounding box, and the feature key follows the file's content."""
+    from build123d import Box, Compound, Location, export_step
+    from hexcad import cache, model
+    body = Box(10, 10, 10)
+    cable = Box(50, 2, 2).moved(Location((40, 0, 0)))
+    export_step(Compound([body, cable]), str(tmp_path / "thing.step"))
+    src = '''
+from hexcad import feature
+from hexcad.shapes import StepFile, step, name, moveBodies, color
+THING = StepFile("thing.step")
+
+@feature
+def bought():
+    b = step(THING, keep=lambda lo, hi: hi[0] < 10)       # drop the "cable"
+    moveBodies(b, [0, 0, 5])
+    name(b, "Thing", color(0.2, 0.2, 0.2))
+'''
+    (tmp_path / "p.py").write_text(src)
+    feats = model.load(tmp_path / "p.py")
+    [p] = model.build(feats, cache=False)
+    assert p.volume == pytest.approx(1000) and p.bbox[0][2] == pytest.approx(0)
+    k1 = cache.feature_key(feats["bought"])
+    export_step(Compound([Box(10, 10, 12), cable]), str(tmp_path / "thing.step"))
+    assert cache.feature_key(model.load(tmp_path / "p.py")["bought"]) != k1

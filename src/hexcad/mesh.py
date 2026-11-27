@@ -2,9 +2,27 @@
 import numpy as np
 
 
+def _triangles(shape, tol):
+    """(verts, tris) of the whole shape; vendor STEP models can have a face OpenCascade can't triangulate, which makes
+    the one-call tessellation fail, so then it goes face by face and skips the faces that fail."""
+    try:
+        return shape.tessellate(tol, 0.2)
+    except AttributeError:
+        verts, tris = [], []
+        for f in shape.faces():
+            try:
+                v, t = f.tessellate(tol, 0.2)
+            except AttributeError:
+                continue
+            n = len(verts)
+            verts += v
+            tris += [(a + n, b + n, c + n) for a, b, c in t]
+        return verts, tris
+
+
 def tessellate(shape, tol=0.05):
     """Flat-shaded triangle soup: float32 [x y z nx ny nz] per vertex, plus bounds (lo, hi)."""
-    verts, tris = shape.tessellate(tol, 0.2)
+    verts, tris = _triangles(shape, tol)
     if not tris:
         return np.zeros((0, 6), np.float32), np.zeros(3), np.zeros(3)
     v = np.array([(p.X, p.Y, p.Z) for p in verts], np.float32)

@@ -149,6 +149,39 @@ def rotateBodies(q, origin, axis, deg):
         b.s = b.s.rotate(Axis(tuple(origin), tuple(axis)), deg)
 
 
+class StepFile:
+    """A bought part's STEP file, as a project constant:  LIDAR = StepFile("../step/lidar.stp")
+    (relative to the project file). Its repr carries the file's hash, so the features that use it rebuild when the
+    file changes (the build cache only sees code and constants)."""
+
+    def __init__(self, path):
+        import hashlib
+        import sys
+        from pathlib import Path
+        p = Path(path).expanduser()
+        if not p.is_absolute():
+            here = sys._getframe(1).f_globals.get("__file__")
+            p = (Path(here).parent if here else Path.cwd()) / p
+        self.path = p.resolve()
+        self.sha = hashlib.sha256(self.path.read_bytes()).hexdigest()[:16]
+
+    def __repr__(self):
+        return f"StepFile({self.path.name!r}, {self.sha})"
+
+
+def step(f, keep=None):
+    """The solids of a STEP file as one Body, in the file's own coordinates (then moveBodies / rotateBodies).
+    keep(lo, hi) -> bool picks solids by their bounding box, e.g. to drop a cable that the vendor drew straight out."""
+    from build123d import Compound, import_step
+    solids = import_step(str(f.path if isinstance(f, StepFile) else f)).solids()
+    if keep:
+        solids = [s for s in solids
+                  if keep(*(lambda b: ((b.min.X, b.min.Y, b.min.Z), (b.max.X, b.max.Y, b.max.Z)))(s.bounding_box()))]
+    if not solids:
+        raise ValueError(f"no solids kept from {f}")
+    return Body(Compound(solids))
+
+
 def filletAt(q, points, r):
     """Fillet the edges passing through the given points (tangent chains follow automatically)."""
     edges = [e for e in q.s.edges() if any(e.distance_to(Vector(*p)) < 1e-4 for p in points)]
