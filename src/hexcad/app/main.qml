@@ -53,7 +53,7 @@ ApplicationWindow {
                     Button { text: studio.busy ? "…" : "Rebuild"; enabled: !studio.busy; onClicked: studio.rebuild() }
                 }
                 RowLayout {
-                    Button { text: "Show all"; onClicked: studio.showAll(true) }
+                    Button { text: "Show default"; onClicked: studio.showAll(true) }
                     Button { text: "Hide all"; onClicked: studio.showAll(false) }
                     Button { text: "Clash check"; onClicked: studio.checkClashes() }
                 }
@@ -62,8 +62,24 @@ ApplicationWindow {
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                     model: studio.partsModel
                     ScrollBar.vertical: ScrollBar {}
+                    // folders = features: a header per feature, ▸/▾ collapses it, its checkbox shows/hides all its parts
+                    property var collapsed: ({})
+                    function toggleCollapsed(f) { var c = Object.assign({}, collapsed); c[f] = !c[f]; collapsed = c }
+                    section.property: "feature"
+                    section.delegate: Rectangle {
+                        required property string section
+                        width: list.width; height: 34; color: "#22252b"
+                        MouseArea { anchors.fill: parent; onClicked: list.toggleCollapsed(section) }
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 4
+                            Label { text: list.collapsed[section] ? "▸" : "▾"; color: win.accent; font.pixelSize: 14 }
+                            Label { text: section; color: win.text; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Button { text: "show / hide"; font.pixelSize: 11; onClicked: studio.toggleFeature(section) }
+                        }
+                    }
                     delegate: Rectangle {
-                        width: list.width; height: 44
+                        width: list.width; height: list.collapsed[feature] ? 0 : 44
+                        visible: !list.collapsed[feature]
                         color: selected ? "#3a3420" : (index % 2 ? "#2a2d33" : "transparent")
                         MouseArea { anchors.fill: parent; onClicked: studio.setSelected(index, !selected) }
                         RowLayout {

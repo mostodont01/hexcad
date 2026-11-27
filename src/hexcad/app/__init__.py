@@ -195,8 +195,18 @@ class Studio(QObject):
 
     @Slot(bool)
     def showAll(self, v):
-        for i in range(len(self.parts.rows)):
-            self.parts.set(i, "shown", v)
+        """v: every feature that is shown by default (hidden ones, like an alternative chassis, stay off);
+        not v: hide everything."""
+        for i, p in enumerate(self._parts):
+            self.parts.set(i, "shown", bool(v) and not p.hidden)
+
+    @Slot(str)
+    def toggleFeature(self, f):
+        """Folder checkbox: hide the feature's parts if any is shown, else show them all."""
+        rows = [i for i, r in enumerate(self.parts.rows) if r["feature"] == f]
+        on = not any(self.parts.rows[i]["shown"] for i in rows)
+        for i in rows:
+            self.parts.set(i, "shown", on)
 
     def _chosen(self):
         sel = [p for p, r in zip(self._parts, self.parts.rows) if r["selected"]]
