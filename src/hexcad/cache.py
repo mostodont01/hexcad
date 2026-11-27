@@ -21,7 +21,9 @@ KEEP = 400          # local entries kept (least recently used ones are removed)
 def _tool():
     """Hash of HexCAD's shape helpers + the build123d version (imported here, so `hexcad serve` needs no CAD kernel)."""
     import build123d
-    return hashlib.sha256(Path(__file__).with_name("shapes.py").read_bytes() + build123d.__version__.encode()).hexdigest()
+    here = Path(__file__).parent              # shape helpers + the mesher (entries hold meshes) + build123d's version
+    return hashlib.sha256(here.joinpath("shapes.py").read_bytes() + here.joinpath("mesh.py").read_bytes()
+                          + build123d.__version__.encode()).hexdigest()
 
 
 def feature_key(fn):

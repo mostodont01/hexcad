@@ -77,10 +77,21 @@ def handle_get(handler, store, key_re):
     if path.startswith("/api/mesh/"):
         parts = path.split("/")                         # ['', 'api', 'mesh', key, i]
         if len(parts) == 5 and key_re.match(parts[3]) and parts[4].isdigit():
+            forever = {"Cache-Control": "public, max-age=31536000, immutable"}
+            gz = store.root / "meshgz" / f"{parts[3]}-{int(parts[4])}.gz"     # compressed once (slow server CPU)
+            wants_gz = "gzip" in handler.headers.get("Accept-Encoding", "")
+            if wants_gz and gz.exists():
+                return _raw(handler, gz.read_bytes(), dict(forever, **{"Content-Encoding": "gzip"}))
             body = mesh(store, parts[3], parts[4])
             if body is not None:
-                return _send(handler, 200, body, "application/octet-stream",
-                             {"Cache-Control": "public, max-age=31536000, immutable"})
+                if wants_gz:
+                    data = gzip.compress(body, 6)
+                    gz.parent.mkdir(exist_ok=True)
+                    tmp = gz.with_suffix(".tmp")
+                    tmp.write_bytes(data)
+                    tmp.replace(gz)
+                    return _raw(handler, data, dict(forever, **{"Content-Encoding": "gzip"}))
+                return _send(handler, 200, body, "application/octet-stream", forever)
         return _send(handler, 404, b"")
     f = WEB / ("index.html" if path == "/" else path.lstrip("/"))
     if f.parent == WEB and f.suffix in TYPES and f.is_file():
@@ -93,6 +104,19 @@ def handle_get(handler, store, key_re):
 
 def _json(handler, obj):
     return _send(handler, 200, json.dumps(obj).encode(), "application/json", {"Cache-Control": "no-cache"})
+
+
+def _raw(handler, body, headers):
+    """An already gzipped mesh."""
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/octet-stream")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Vary", "Accept-Encoding")
+    for k, v in headers.items():
+        handler.send_header(k, v)
+    handler.end_headers()
+    handler.wfile.write(body)
+    return True
 
 
 def _send(handler, code, body, ctype="application/octet-stream", headers=None):

@@ -108,3 +108,24 @@ def test_sync_all_fills_a_new_server(tmp_path, server):
     assert lap.unsynced() == [] and Remote(server).sync(lap) == 0          # nothing looks new
     assert Remote(server).sync(lap, everything=True) == 2
     assert len(json.loads(get(server + "/api/projects")[0])) == 1
+
+
+def test_gzipped_mesh_is_made_once_and_reused(tmp_path, server):
+    lap = cache.Local(tmp_path / "laptop")
+    feats = project(tmp_path)
+    model.build(feats, local=lap, remote=Remote(server))
+    key = cache.feature_key(feats["a"])
+    first, h = get(f"{server}/api/mesh/{key}/0", gz=True)
+    saved = list((tmp_path / "store" / "meshgz").glob("*.gz"))
+    assert [f.name for f in saved] == [f"{key}-0.gz"] and h["Content-Encoding"] == "gzip"
+    again, _ = get(f"{server}/api/mesh/{key}/0", gz=True)
+    assert again == first and get(f"{server}/api/mesh/{key}/0")[0] == first      # plain = same floats
+
+
+def test_very_detailed_shapes_get_a_coarser_mesh(monkeypatch):
+    from build123d import Sphere
+    from hexcad import mesh
+    fine = mesh.tessellate(Sphere(50))[0]
+    monkeypatch.setattr(mesh, "MAX_TRIANGLES", len(fine) // 3 // 4)
+    coarse = mesh.tessellate(Sphere(50))[0]
+    assert len(coarse) // 3 <= mesh.MAX_TRIANGLES < len(fine) // 3
