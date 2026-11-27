@@ -1,4 +1,5 @@
 """HexCAD viewer: live 3D view of a project file, rebuilt on every save."""
+import json
 import os
 import sys
 import traceback
@@ -114,6 +115,7 @@ class Studio(QObject):
     clashes = _prop("clashes")
     radius = _prop("radius", float)
     center = _prop("center", QVector3D)
+    recent = Property(list, lambda s: recent_projects(), notify=changed)
 
     @Property(QObject, constant=True)
     def partsModel(self):
@@ -219,10 +221,22 @@ class Studio(QObject):
 LAST = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser() / "hexcad" / "last-project"
 
 
+RECENT = LAST.with_name("recent.json")
+
+
+def recent_projects():
+    """Recently opened projects, newest first (files that are gone are left out)."""
+    try:
+        return [p for p in json.loads(RECENT.read_text()) if Path(p).exists()]
+    except (OSError, ValueError):
+        return []
+
+
 def remember(path):
     try:
         LAST.parent.mkdir(parents=True, exist_ok=True)
         LAST.write_text(str(path))
+        RECENT.write_text(json.dumps([str(path)] + [p for p in recent_projects() if p != str(path)][:7]))
     except OSError:
         pass
 

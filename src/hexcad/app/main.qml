@@ -30,6 +30,15 @@ ApplicationWindow {
                     Label { text: studio.path; color: win.dim; elide: Text.ElideMiddle; Layout.fillWidth: true }
                     Button { text: "Open…"; onClicked: openDlg.active = true }
                 }
+                ComboBox {
+                    // recent projects (newest first): pick one to open it
+                    Layout.fillWidth: true; model: studio.recent; displayText: "Recent projects…"
+                    enabled: studio.recent.length > 1
+                    delegate: ItemDelegate {
+                        width: ListView.view.width; text: modelData.split("/").slice(-3).join("/")
+                        onClicked: studio.open(modelData)
+                    }
+                }
                 // created only when needed: a FileDialog made at start-up blocks rendering on Wayland
                 Loader {
                     id: openDlg; active: false
